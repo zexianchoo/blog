@@ -1,7 +1,7 @@
 ---
 date: '2025-09-18T05:40:06Z'
 draft: false
-title: "My First Post"
+title: "Homelab Showcase"
 ---
 
 ## Welcome to My Blog
