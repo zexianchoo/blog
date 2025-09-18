@@ -11,6 +11,8 @@ params:
     socialIcons:
     - name: email
       url: 'mailto:some@emailadres.com'
+  mainSections:
+    - "posts"
 menu:
   main:
     - identifier: categories
