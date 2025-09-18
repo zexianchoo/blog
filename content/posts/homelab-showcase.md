@@ -2,6 +2,7 @@
 date: '2025-09-18T05:40:06Z'
 draft: false
 title: "Homelab Showcase"
+tags: "homelab"
 ---
 
 ## Welcome to My Blog
