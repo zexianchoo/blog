@@ -2,3 +2,5 @@ baseURL: https://blog.seanchoo.top/
 languageCode: en-us
 title: Sean Choo's Blog!!
 theme: ["PaperMod"]
+params:
+  env: production
