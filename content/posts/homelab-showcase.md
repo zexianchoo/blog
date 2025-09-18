@@ -1,14 +1,36 @@
 ---
-date: '2025-09-18T05:40:06Z'
+title: Homelab Showcase"
+date: 2020-09-15T11:30:03+00:00
+tags: ["homelab"]
+author: "Sean"
+showToc: true
+TocOpen: false
 draft: false
-title: "Homelab Showcase"
-tags: ["Homelab"]
+hidemeta: false
+comments: true
+description: "We try to make the ultimate homelab"
+# canonicalURL: "https://canonical.url/to/page"
+disableHLJS: true # to disable highlightjs
+disableShare: false
+disableHLJS: false
+hideSummary: false
+searchHidden: true
+ShowReadingTime: true
+ShowBreadCrumbs: true
+ShowPostNavLinks: true
+ShowWordCount: true
+ShowRssButtonInSectionTermList: true
+UseHugoToc: true
+# cover:
+#     image: "<image path/url>" # image path/url
+#     alt: "<alt text>" # alt text
+#     caption: "<text>" # display caption under cover
+#     relative: false # when using page bundles set this to true
+#     hidden: true # only hide on current single page
+# editPost:
+#     URL: "https://github.com/<path_to_repo>/content"
+#     Text: "Suggest Changes" # edit text
+#     appendFilePath: true # to append file path to Edit link
 ---
-
-## Welcome to My Blog
-
-This is my very first post, written in **Markdown**. It's easy to learn!
-
-- You can create bullet points.
-- Add links like this: [Hugo PaperMod Docs](https://github.com/adityatelange/hugo-PaperMod)
-- And even include images.
+hi
+ajlsidalksjd
