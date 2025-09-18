@@ -4,6 +4,13 @@ title: Sean Choo's Blog!!
 theme: ["PaperMod"]
 params:
   env: production
+  homeInfoParams:
+    Title: "Hi there \U0001F44B"
+    Content: >-
+      Welcome to my website. 
+    socialIcons:
+    - name: email
+      url: 'mailto:some@emailadres.com'
 menu:
   main:
     - identifier: categories
@@ -18,3 +25,4 @@ menu:
       name: example.org
       url: https://example.org
       weight: 30
+  
