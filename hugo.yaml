@@ -15,6 +15,9 @@ params:
     - "posts"
 menu:
   main:
+    - identifier: posts  
+      name: Posts
+      url: /posts/
     - identifier: categories
       name: categories
       url: /categories/
