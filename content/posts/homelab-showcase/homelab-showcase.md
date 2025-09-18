@@ -33,6 +33,6 @@ cover:
 #     Text: "Suggest Changes" # edit text
 #     appendFilePath: true # to append file path to Edit link
 ---
-![tony](tony.png#center)
+![tony](tony.png)
 hi
 ajlsidalksjd
