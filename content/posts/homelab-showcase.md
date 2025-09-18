@@ -1,7 +1,8 @@
 ---
 title: Homelab Showcase
-date: 2020-09-15T11:30:03+00:00
-tags: ["homelab"]
+date: 2025-09-17
+summary: We try to make the ultimate homelab
+tags: ["Homelab"]
 author: "Sean"
 showToc: true
 TocOpen: false
@@ -22,11 +23,11 @@ ShowWordCount: true
 ShowRssButtonInSectionTermList: true
 UseHugoToc: true
 cover:
-#     image: "<image path/url>" # image path/url
-    # alt: "<alt text>" # alt text
-    caption: "We try to make the ultimate homelab" # display caption under cover
-    relative: false # when using page bundles set this to true
-    hidden: false # only hide on current single page
+    image: 
+    alt: 
+    caption: "We try to make the ultimate homelab" 
+    relative: false 
+    hidden: false 
 # editPost:
 #     URL: "https://github.com/<path_to_repo>/content"
 #     Text: "Suggest Changes" # edit text
