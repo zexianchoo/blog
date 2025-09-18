@@ -1,8 +1,7 @@
 ---
-title: "My First Post"
-date: 2025-09-18T05:45:00Z
+date: '2025-09-18T05:40:06Z'
 draft: false
-ShowToc: true
+title: "My First Post"
 ---
 
 ## Welcome to My Blog
