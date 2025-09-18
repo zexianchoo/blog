@@ -1,0 +1,4 @@
+baseURL: https://blog.seanchoo.top/
+languageCode: en-us
+title: Sean's Blog test
+theme: ["PaperMod"]
