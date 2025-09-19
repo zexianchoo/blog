@@ -7,6 +7,10 @@ buildDrafts: true
 buildFuture: false
 buildExpired: false
 
+services:
+  disqus:
+    shortname: disqus_6o1z4UHK1p
+
 minify:
   disableXML: true
   minifyOutput: true

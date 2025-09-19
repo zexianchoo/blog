@@ -20,18 +20,18 @@ ShowReadingTime: true
 ShowBreadCrumbs: true
 ShowPostNavLinks: true
 ShowWordCount: true
-ShowRssButtonInSectionTermList: true
+ShowRssButtonInSectionTermList: false
 UseHugoToc: true
 cover:
     image: 
     alt: 
     caption: "We try to make the ultimate homelab" 
-    relative: false 
+    relative: true
     hidden: false 
 editPost:
     URL: "https://github.com/zexianchoo/blog/tree/main/content"
-    Text: "Suggest Changes" # edit text
-    appendFilePath: true # to append file path to Edit link
+    Text: "Suggest Changes"
+    appendFilePath: true 
 ---
 ## What is a homelab and why should I build one?
 
