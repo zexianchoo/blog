@@ -19,9 +19,6 @@
 {{- range $index, $page := $paginator.Pages }}
     {{- $class := "post-entry" }}
     {{- $user_preferred := or site.Params.disableSpecial1stPost site.Params.homeInfoParams }}
-    {{- if (and $.IsHome (eq $paginator.PageNumber 1) (eq $index 0) (not $user_preferred)) }}
-        {{- $class = "first-entry" }}
-    {{- end }}
 
     <article class="{{ $class }}">
         {{- $isHidden := (.Param "cover.hiddenInList") | default (.Param "cover.hidden") | default false }}
