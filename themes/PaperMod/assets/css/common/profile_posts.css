@@ -1,0 +1,42 @@
+.main-card-container .first-entry,
+.main-card-container .post-entry {
+    background: var(--entry);
+    border: 1px solid var(--border);
+    border-radius: var(--radius); /* Rounded edges */
+    margin-bottom: var(--gap);
+    padding: var(--gap);
+    position: relative;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; /* Smooth transition for hover */
+}
+
+/* * A subtle "lift" and shadow effect when hovering over any post.
+    */
+.main-card-container .first-entry:hover,
+.main-card-container .post-entry:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Keep the header font sizes consistent */
+.main-card-container .first-entry .entry-header h2,
+.main-card-container .post-entry .entry-header h2 {
+    font-size: 24px;
+    line-height: 1.3;
+}
+
+/* Ensure the first-entry uses the standard h2, not h1 */
+.main-card-container .first-entry .entry-header h1 {
+    font-size: 24px;
+    line-height: 1.3;
+}
+
+/* Remove the default extra margin from the first entry */
+.main-card-container .first-entry {
+    margin: 0 0 var(--gap) 0;
+    min-height: auto;
+}
+
+.main-card-container .post-entry:active,
+.main-card-container .first-entry:active {
+    transform: scale(0.98) translateY(0);
+}

@@ -1,7 +1,7 @@
 ---
 title: Homelab Showcase
 date: 2025-09-17
-summary: We try to make the ultimate homelab
+summary: The journey for the ultimate homelab
 tags: ["Homelab"]
 author: "Sean"
 showToc: true
@@ -9,13 +9,13 @@ TocOpen: false
 draft: false
 hidemeta: false
 comments: true
-description: "We try to make the ultimate homelab"
+description: "Homelabbing as a way of life"
 # canonicalURL: "https://canonical.url/to/page"
 disableHLJS: true # to disable highlightjs
 disableShare: false
 disableHLJS: false
 hideSummary: false
-searchHidden: true
+searchHidden: false
 ShowReadingTime: true
 ShowBreadCrumbs: true
 ShowPostNavLinks: true
