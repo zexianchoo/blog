@@ -1,5 +1,5 @@
 ---
-title: Homelab Showcase
+title: Homelab!!
 date: 2025-09-17
 summary: On the quest for the ultimate homelab.
 tags: ["Homelab"]
