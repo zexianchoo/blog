@@ -1,4 +1,4 @@
-baseURL: https://blog.seanchoo.top/
+baseURL: https://blog.seanchoo.dev/
 languageCode: en-us
 title: Sean Choo | Always Building.
 theme: ["PaperMod"]
@@ -84,7 +84,7 @@ params:
     - name: github
       url: "https://github.com/zexianchoo"
     - name: website
-      url: "https://seanchoo.top"
+      url: "https://seanchoo.dev"
   # analytics:
   #   google:
   #     SiteVerificationTag: "XYZabc"
@@ -125,7 +125,7 @@ menu:
       weight: 20
     - identifier: website
       name: personal website
-      url: https://seanchoo.top
+      url: https://seanchoo.dev
       weight: 30
 # Read: https://github.com/adityatelange/hugo-PaperMod/wiki/FAQs#using-hugos-syntax-highlighter-chroma
 pygmentsUseClasses: true
