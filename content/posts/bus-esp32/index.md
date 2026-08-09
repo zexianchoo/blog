@@ -9,7 +9,7 @@ TocOpen: false
 draft: true
 hidemeta: false
 comments: true
-description: "using an esp32, onebusaway and google routes to tell me when to leave home"
+description: "using an esp32 and google routes to tell me when to leave home"
 disableShare: false
 disableHLJS: false
 hideSummary: false
@@ -19,6 +19,11 @@ ShowBreadCrumbs: true
 ShowPostNavLinks: true
 ShowWordCount: true
 UseHugoToc: true
+cover:
+  image: "cover-ai.jpg"
+  alt: "Illustrated red, black, and white e-paper commute display overlooking a train and bus at dawn"
+  caption: "A quiet morning display for one practical question: when should I leave?"
+  hiddenInSingle: true
 ---
 
 My morning commute has several legs, which means checking one transit app is apparently not enough.
@@ -29,37 +34,81 @@ Very reasonable behavior.
 
 The result is an ESP32-S3 commute display using a 2.9-inch black / white / red e-paper panel.
 
-# What it shows
+This post follows one refresh cycle: the device wakes, fetches just enough data to make a decision, redraws the paper, and goes back to sleep.
+
+## Why stale e-paper data is dangerous
 
 The screen gives me the next three complete commute options:
 
 1. when to leave home
-2. which Link train to catch
-3. the matching bus departure
-4. the last successful sync time
+2. the matching transit line
+3. the expected arrival time
+4. the last successful refresh time
 
 I show the important times in red because the display only has three colors and I might as well use the exciting one.
 
-The final bus is the main constraint, so the program starts from its upcoming departures and works backward through the train itinerary to calculate a leave-home time.
+The device asks for successive complete transit routes, then subtracts the initial walk from each departure to compute the time I actually need to leave home.
 
-I also add a five-minute bus-catching buffer. Google may think a two-minute transfer is technically possible, but Google does not have to watch me sprint up the stairs.
+![ESP32 commute display pipeline](commute-pipeline.svg)
 
-# APIs
+## Fetching three complete commute options
 
-I use two data sources:
-
-- OneBusAway for scheduled or live bus predictions
-- Google Routes for the transit itinerary
+The current build uses the Google Routes API for the complete transit itinerary.
 
 Google's response can be pretty large compared to what an ESP32 actually needs, so I use a field mask and only parse the relevant itinerary data.
 
-The code also checks that the response contains the expected rail segment. A route arriving at roughly the correct time through some completely different combination of buses is not useful just because the timestamp matches.
+The program requests the first route, moves the requested departure time just past that result, and repeats until it has up to three genuinely successive options. It also checks that the response contains a usable transit step before treating the timestamps as a commute.
+
+{{< figure src="successive-routes.svg" width="760" align="center" alt="Successive route query sequence where each request begins after the previous departure and complete itineraries become leave-by times" caption="Moving the next request past the previous departure avoids showing three nearly identical versions of the same trip." >}}
+
+The actual loop is small because the interesting behavior is encoded in the next departure time, not in a huge response object:
+
+```cpp
+https.addHeader("X-Goog-FieldMask",
+  "routes.legs.steps.travelMode,routes.legs.steps.staticDuration,"
+  "routes.legs.steps.transitDetails");
+
+int fetchOptions(Option out[], int maxN, String& err) {
+  time_t after = time(nullptr);
+  int n = 0;
+  for (; n < maxN; n++) {
+    String e;
+    Option o = fetchOne(after, e);
+    if (!o.ok) {
+      if (n == 0) err = e;
+      break;
+    }
+    out[n] = o;
+    after = o.depEpoch + 60;
+  }
+  return n;
+}
+```
+
+The field mask bounds the JSON; advancing by sixty seconds forces the following request past the route I already displayed.
 
 This was one of those places where microcontrollers make waste very obvious. On a server, downloading a massive JSON response and ignoring 99% of it is merely ugly. On an ESP32, it can just run out of memory and die.
 
-# Refresh schedule / Deep sleep
+## What actually fits on the 296 × 128 e-paper screen
 
-The display refreshes every ten minutes during my morning travel window, Monday through Saturday.
+{{< figure src="commute-display-output.svg" width="700" align="center" alt="Faithful redraw of the ESP32's 296 by 128 pixel e-paper output, showing three leave-by times with line and arrival details" caption="A redraw of the actual drawScreen() output: one header, one divider, and three route rows. The sample times are fictional; the layout is not." >}}
+
+The display has no scroll view, notifications, or hidden detail page. Whatever does not fit on the 128×296 panel effectively does not exist.
+
+That constraint produced a useful priority order:
+
+1. **Leave-by time** gets the largest type because it answers the immediate question.
+2. **Transit line and arrival** sit beside it as enough context to distinguish the options.
+3. **Refresh time** stays small but visible so stale data cannot masquerade as current advice.
+4. **Urgency** uses the one accent color instead of another icon or sentence.
+
+I render a dedicated diagnostic screen when the route cannot load. Wi-Fi, clock state, and a bounded error message are more useful there than leaving a blank panel. E-paper preserves the last frame, which is wonderful for power and dangerous for trust: without an updated timestamp, a perfectly crisp old commute can look authoritative all morning.
+
+The UI is therefore less like a tiny transit app and more like a physical status report. It shows the decision, the minimum evidence behind it, and whether that evidence is fresh.
+
+## Refresh timing, deep sleep, and debugging
+
+The display refreshes every three minutes during the weekday morning window.
 
 Outside of that schedule, it shows a calm off-hours page and deep-sleeps until the next active period.
 
@@ -69,7 +118,7 @@ Errors behave slightly differently. If an API request fails, the device keeps US
 
 There is also a test mode which fetches once and stays awake. This was essential because trying to debug a microcontroller which immediately goes to sleep is a really good way to lose your mind.
 
-# Hardware
+## Hardware and security tradeoffs
 
 The hardware is:
 
@@ -86,7 +135,7 @@ One security compromise is still documented: the current hobby build disables TL
 
 It is not ideal, but hiding the problem inside the code would not make it safer. At least it is very clearly listed as something I need to fix before pretending this is a hardened device.
 
-# Conclusion
+## Why I built a display instead of opening another app
 
 Yes, I could look at my phone.
 

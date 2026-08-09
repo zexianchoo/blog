@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 470" role="img" aria-labelledby="title desc">
+  <title id="title">Faithful redraw of the ESP32 commute display</title>
+  <desc id="desc">A 296 by 128 pixel e-paper screen with a Leave By header, refresh time, divider, and three transit options. The urgent leave time is red.</desc>
+  <defs>
+    <linearGradient id="bezel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#282824"/>
+      <stop offset="1" stop-color="#191917"/>
+    </linearGradient>
+    <filter id="paper" x="-2%" y="-4%" width="104%" height="108%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" seed="12" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="gray"/>
+      <feComponentTransfer in="gray" result="faintNoise">
+        <feFuncA type="table" tableValues="0 0.035"/>
+      </feComponentTransfer>
+      <feBlend in="SourceGraphic" in2="faintNoise" mode="multiply"/>
+    </filter>
+  </defs>
+
+  <rect x="18" y="18" width="944" height="434" rx="22" fill="url(#bezel)"/>
+  <rect x="42" y="42" width="896" height="386" rx="5" fill="#eee9d9" stroke="#080807" stroke-width="4"/>
+
+  <!-- The nested viewBox mirrors the firmware's landscape 296 x 128 canvas. -->
+  <svg x="42" y="42" width="896" height="386" viewBox="0 0 296 128" overflow="hidden" filter="url(#paper)">
+    <rect width="296" height="128" fill="#f7f4e8"/>
+    <g font-family="FreeSans, Arial, sans-serif" fill="#171715">
+      <text x="6" y="16" font-size="12" font-weight="700">LEAVE BY</text>
+      <text x="290" y="16" text-anchor="end" font-size="12">7:34</text>
+      <line x1="6" y1="22" x2="290" y2="22" stroke="#171715" stroke-width="1"/>
+
+      <text x="6" y="54" fill="#b52322" font-size="28" font-weight="700">7:42</text>
+      <text x="110" y="50" font-size="13">Link 1 -&gt; 8:16</text>
+
+      <text x="6" y="88" font-size="28" font-weight="700">7:56</text>
+      <text x="110" y="84" font-size="13">Link 1 -&gt; 8:31</text>
+
+      <text x="6" y="122" font-size="28" font-weight="700">8:11</text>
+      <text x="110" y="118" font-size="13">Link 1 -&gt; 8:47</text>
+    </g>
+  </svg>
+</svg>

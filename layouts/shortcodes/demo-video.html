@@ -1,0 +1,33 @@
+{{- $src := .Get "src" -}}
+{{- if not $src -}}
+  {{- errorf "The demo-video shortcode requires a src argument: %s" .Position -}}
+{{- end -}}
+{{- $title := default "Product demo" (.Get "title") -}}
+{{- $poster := .Get "poster" -}}
+{{- $portrait := eq (.Get "portrait") "true" -}}
+<figure class="post-demo-video{{ if $portrait }} post-demo-video--portrait{{ end }}">
+  <div class="post-demo-video__shell">
+    <div class="post-demo-video__bar">
+      <span class="post-demo-video__lights" aria-hidden="true"><i></i><i></i><i></i></span>
+      <strong>{{ $title }}</strong>
+      <span class="post-demo-video__label">Demo video</span>
+    </div>
+    <video
+      class="post-demo-video__media"
+      aria-label="{{ $title }}"
+      {{- with $poster }} poster="{{ . | safeURL }}"{{ end }}
+      autoplay
+      muted
+      loop
+      playsinline
+      controls
+      preload="metadata"
+    >
+      <source src="{{ $src | safeURL }}" type="video/mp4">
+      Your browser does not support embedded MP4 video.
+    </video>
+  </div>
+  {{- with .Get "caption" }}
+    <figcaption class="post-demo-video__caption">{{ . | markdownify }}</figcaption>
+  {{- end }}
+</figure>
