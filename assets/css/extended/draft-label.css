@@ -1,0 +1,18 @@
+.entry-hint[title="Draft"] svg {
+    display: none;
+}
+
+.entry-hint[title="Draft"]::after {
+    content: "Draft";
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--secondary);
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}

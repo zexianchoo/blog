@@ -1,7 +1,7 @@
 ---
 title: "Homelab!! Part 2"
 date: 2026-08-02
-summary: "the migration arc (this is taking forever)"
+summary: "what I moved, what I verified, and why I rolled part of it back"
 tags: ["Homelab", "Proxmox", "Kubernetes", "Networking", "GitOps"]
 author: "Sean"
 showToc: true
@@ -9,7 +9,7 @@ TocOpen: false
 draft: true
 hidemeta: false
 comments: true
-description: "adding another proxmox host and trying not to destroy the first one"
+description: "the actual work behind moving my public and private homelab clusters onto a second Proxmox host"
 disableShare: false
 disableHLJS: false
 hideSummary: false
@@ -19,149 +19,125 @@ ShowBreadCrumbs: true
 ShowPostNavLinks: true
 ShowWordCount: true
 UseHugoToc: true
+cover:
+  image: "cover-ai.jpg"
+  alt: "Illustrated mini PC and rack server exchanging glowing packets across a home office desk"
+  caption: "Moving workloads carefully while the original host remains recoverable."
+  hiddenInSingle: true
 ---
 
-My [previous homelab article](/posts/homelab-showcase/) ended with two k8s clusters, several LXCs, Tailscale, Cloudflare, Proxmox, and one tiny Beelink doing far too much work.
+My [previous homelab article](/posts/homelab-showcase/) ended with two Kubernetes clusters, several LXCs, and one mini PC doing compute, storage, and routing at the same time. Part 2 is the work I did to add a second Proxmox host without pretending the first host was disposable.
 
-Obviously, the solution was to buy / acquire another computer and make the architecture even more complicated.
+The plan was simple on paper: keep the original machine as the router and storage server, move more compute to the Dell, and separate public workloads from private ones with VLANs and OPNsense rules.
 
-I now have a Dell Proxmox host which is intended to take over more of the workloads from the original Beelink.
+The implementation involved a VM move, a shared-storage path, an off-machine Kubernetes checkpoint, a switch trunk, an address-conflict probe, one failed network cutover, a complete rollback, an isolation test, and a backup verification. This is the actual sequence.
 
-The important word there is **intended**.
+# The architecture I built
 
-The Beelink is still the production source for anything which has not completed an actual migration and cutover. A VM existing on the Dell does not make it production, no matter how emotionally attached I am to the new server.
+![Homelab migration topology](migration-topology.svg)
 
-# Current topology
+I added the Dell as a second Proxmox node and connected it to the managed switch. The original mini PC still runs OPNsense and exports the shared storage used by the Dell-hosted VM, so it remains a real dependency rather than an “old server.”
 
-At a high level, the network now looks like this:
+The switch carries separate networks for ordinary clients, private infrastructure, IoT devices, public workloads, and guests. The access point serves multiple SSIDs across those networks. Their management interfaces live in only one trust zone each; that does not describe every VLAN they carry.
 
-```text
-Internet
-   |
-OPNsense on Beelink Proxmox
-   |
-managed switch ---- access point
-   |
-Dell Proxmox
-```
+{{< figure src="tp-link-tl-sg108e-switch.jpg" width="720" align="center" alt="TP-Link TL-SG108E eight-port gigabit switch beside its retail box" caption="I configured the managed switch to carry the networks needed by the original host, the Dell, and the access point." >}}
 
-I also have separate trust zones for ordinary clients, private infrastructure, IoT, public workloads, and guests.
+{{< figure src="tp-link-eap225-access-point.jpg" width="560" align="center" alt="White TP-Link EAP225 wireless access point" caption="The access point keeps client SSIDs separated while using a different network for management." >}}
 
-The funny part is that the original Beelink still hosts OPNsense, which the Dell needs for routing. This means I cannot just finish migrating a few apps, unplug the “old server,” and celebrate. I would also be unplugging the router which makes the new server reachable.
+At this stage the topology was deliberately asymmetric: the Dell could run workloads, but the original host still owned routing and storage. That dependency determined what I could safely move and what I had to preserve.
 
-This is why I keep making network diagrams. They turn a vague dependency into a very obvious line which says “do not turn this off, idiot.”
+# I moved the public cluster's compute first
 
-# Moving this blog first
+I restored the public single-node Kubernetes VM onto storage shared by the two Proxmox hosts, then ran that VM on the Dell. The original virtual disk and VM configuration stayed on the first host as the rollback source.
 
-I used this Hugo blog as one of the earlier workloads on the Dell.
+The post-move checks were more important than the VM appearing in the Dell's inventory:
 
-A static blog running inside an unprivileged LXC is relatively forgiving compared to something with a database, so it was a good way to test the new public-workload network.
+- both Proxmox nodes were online and quorate
+- the VM was running on the Dell from the shared virtual disk
+- the Kubernetes node reported `Ready`
+- the guest agent reported the expected interface and route
+- the virtual disk reported no failed reads, writes, flushes, or unmaps
+- the original disk remained separate and untouched
 
-The networking still managed to become a pain.
+That gave me a working compute move with a recoverable source. It did **not** complete the network move.
 
-At first, `ping` failed inside the container. It looked like a VLAN or bridge problem, but it turns out unprivileged containers can also fail to open raw ICMP sockets because the binary does not have the required capability.
+# I made recovery material before touching the network
 
-Fixing that did not automatically fix the network though. There were still separate questions:
+The public cluster uses embedded etcd, so before changing its address I created an etcd snapshot inside the VM. I copied that snapshot off the VM, locked the copy down to the root account, and compared its checksum and byte count with the original.
 
-1. Did the LXC receive the expected DHCP lease?
-2. Could it reach the gateway?
-3. Did DNS work?
-4. Did the firewall block private networks?
-5. Could it still reach the public internet?
-6. Could someone outside reach the blog through the intended route?
+I also saved the active VM configuration and the guest's network configuration before the cutover attempt. I generated the proposed configuration in an isolated directory first instead of editing the only working copy in place.
 
-This taught me to stop treating “ping does not work” as one problem.
+The recovery checkpoint therefore covered three different failure modes:
 
-A local Linux capability error, a bad VLAN tag, a missing DHCP reservation, DNS, and an OPNsense rule can all look like “the network is broken” from far away. Fixing one layer does not prove any of the others.
+1. the Kubernetes datastore could be restored from the verified snapshot
+2. the VM's virtual hardware configuration could be reconstructed
+3. the guest could be returned to its previous address and route
 
-# VLANs / Firewall
+Kubernetes was still `Ready` after the checkpoint was created and copied.
 
-The public-workload network uses a default-deny policy.
+# I tested the destination address before using it
 
-A new host needs explicit access to DNS, the gateway, and the public internet, while still being blocked from the private networks. Rule order also matters because OPNsense uses first-match behavior.
+Before the service interruption, I created one temporary VLAN interface on the Dell and used duplicate-address-detection probes against the proposed address. Nothing answered, which gave me evidence that the address was not already in use.
 
-I lost a little time staring at a perfectly good allow rule which sat below a broader block rule and therefore did absolutely nothing. Very cool.
+I removed the temporary interface immediately afterward and confirmed the running VM had not changed. The test answered one narrow question—address conflict—and did not claim that routing, DNS, or the firewall were ready.
 
-I have also become much more careful about assuming that a device's management IP describes all of its traffic.
+# The VLAN cutover failed, so I rolled it back
 
-The switch can have its management address in one VLAN while carrying trunks for several others. The access point can be managed from the IoT side while serving multiple SSIDs. Management plane and data plane are related, but they are definitely not the same thing.
+For the guarded cutover attempt, I stopped Kubernetes cleanly, changed the VM's virtual NIC to the public-workload VLAN, and applied the prevalidated guest configuration.
 
-# GitOps does not migrate data
+The guest acquired the intended address and default route, but it could not reach the gateway. Internet egress and DNS therefore failed too. I stopped at that gate instead of starting Kubernetes in a half-working network.
 
-Most of my public applications are managed through Git and Argo CD.
+I restored the saved guest configuration, restored the original virtual NIC assignment, and applied the old network state. The VM returned to its previous address, Kubernetes started successfully, the node returned to `Ready`, and the shared disk still reported zero I/O failures.
 
-I love GitOps because I can review the desired state and avoid SSHing into a random server to change production. Unfortunately, Argo saying **Synced** does not mean the entire application migration is complete.
+The rollback was not cleanup after the “real” work. It was part of the work.
 
-For every workload, there are several separate facts:
+{{< figure src="network-diagnosis-stack.svg" width="760" align="center" alt="Network diagnosis stack separating host capability, VLAN configuration, DHCP, DNS, firewall policy, and the public origin" caption="The failed gateway check stopped the cutover before Kubernetes or application health could be mistaken for network success." >}}
 
-1. source code commit
-2. published container image / digest
-3. GitOps manifest
-4. reconciled cluster resources
-5. persistent data and secrets
-6. actual user journey
+# I found the actual network blocker
 
-A green GitHub check proves the first few pieces at best. It does not prove the PVC contains the right data or that the login flow works through Cloudflare / Tailscale.
+The switch and the Dell bridge were carrying the public VLAN correctly. The missing link was on the original host: the public network existed on an isolated software bridge, while the physical switch trunk terminated on a different bridge.
 
-I am also trying to use immutable digests or versioned tags at the deployment boundary. `latest` is very convenient until I need to answer the question “which image is actually running?”
+In other words, the VLAN frames arriving from the Dell had no path to the router interface that owned the public gateway. This was not a bad Kubernetes manifest, a stale DNS record, or an application problem. It was a Layer 2 topology gap.
 
-# Backups
+Fixing it requires a deliberate bridge or OPNsense VLAN redesign. I left that change out of the failed attempt because it expands the blast radius from one workload to the network used by every public service.
 
-This migration has made me much more paranoid about backups, which is probably healthy.
+# I tested the private-cluster design separately
 
-A backup appearing inside the datastore only proves that some bytes exist. It does not prove that the snapshot is complete, readable, decryptable, or restorable.
+The private cluster has different requirements because its persistent data and administrative services must not become reachable from the public-workload network.
 
-Before cutting over a stateful service, I want:
+I inventoried the source VM, Kubernetes datastore, persistent volumes, routes, memory pressure, disk allocation, backup state, and Dell capacity. That inspection found the private cluster healthy on the original host, with its persistent volumes contained inside the VM's main disk.
 
-- the source data preserved
-- a fresh backup
-- a successful verification result
-- the secrets required to restore it
-- enough destination storage
-- a rollback path
-- a read-only consistency check after moving it
+I then tested the proposed Dell network boundary with a disposable empty network namespace. The native private path could reach its gateway, while guest-generated traffic tagged for the IoT and public networks could not resolve either gateway. The probe was removed after the test.
 
-Encrypted backups especially need real verification. Seeing an encrypted snapshot and feeling safe is not the same as knowing that I can restore it.
+From the public cluster I also tested representative private destinations and service ports; they were blocked. The private side retained its required DNS and internet egress. This gave me data-plane evidence for the isolation design, although I still want matching firewall-log evidence before a private-cluster cutover.
 
-I used to think of a backup as a file. I am slowly learning that a backup is really a tested recovery process, which is much less convenient but unfortunately true.
+# The backup passed; the disk copy did not
 
-# Stateful applications
+Before moving the large private VM, I created a consistent online copy of its Kubernetes SQLite datastore, ran an integrity check, and recorded a checksum. I also created an encrypted Proxmox Backup Server recovery point.
 
-Moving this blog is easy compared to moving Actual Budget, Immich, or anything else with meaningful state.
+I did not count the backup as good just because it existed or showed an encryption badge. I checked the exact snapshot row and waited for the verification result to report `OK`.
 
-For every stateful service, I need to answer:
+The later disk-copy attempt failed with a broken pipe. It left a large raw file on the shared storage, but that file was unattached and had not passed a consistency check. The production VM was still running from its original disk.
 
-1. Which instance is the source of truth right now?
-2. Can writes happen during the migration?
-3. Where are the database, files, and encryption keys?
-4. How do I detect a partial copy?
-5. How long do I keep the old source?
-6. What exact test allows me to switch traffic?
+So I treated the copy as failed. I did not attach it, promote it, overwrite the source, or describe the private workload as migrated. A full-sized file is not proof of a valid virtual disk.
 
-The safest flow is boring: keep the old source intact, copy the data, validate the target, and move production traffic last.
+# What is actually complete
 
-DNS and firewall changes are not debugging toys when they decide which database receives the next write.
+{{< figure src="migration-gates.svg" width="760" align="center" alt="Six workload migration gates from preserving the source through backup verification, real-journey testing, cutover, and observation" caption="These are the gates I used while doing the work, including the rollback points." >}}
 
-# When is it actually migrated?
+| Work item | Result |
+| --- | --- |
+| Add the Dell as a second Proxmox compute host | Complete |
+| Run the public Kubernetes VM on Dell-backed shared storage | Complete |
+| Preserve the original public VM disk and configuration | Complete |
+| Create and verify an off-VM etcd checkpoint | Complete |
+| Probe the proposed public address without changing production | Complete |
+| Move the public VM onto its final network | Rolled back after the gateway check failed |
+| Identify the failed network path | Complete: the public bridge did not reach the physical trunk |
+| Prove the proposed private access-mode isolation | Complete at the data plane; firewall-log correlation remains |
+| Verify an encrypted recovery point for the private VM | Complete |
+| Copy and cut over the private VM | Not complete; the copy failed and the source remains authoritative |
 
-Not when the VM boots.
+The Dell now does real work, but the migration is intentionally incomplete. The original host still routes the network, exports shared storage, and owns the authoritative private-cluster disk. The public cluster's final VLAN move needs a network redesign, and the private cluster needs a new copy strategy plus the remaining isolation checks.
 
-Not when Argo says Synced.
-
-Not when the pod says Ready.
-
-Not even when the homepage returns HTTP 200.
-
-I consider a workload migrated when the real data is intact, secrets are correct, the actual user journey works, monitoring exists, backups are verified, rollback is possible, and production traffic intentionally points to the new instance.
-
-The old source only gets retired after all of that stays boring for a while.
-
-# Conclusion
-
-The Dell is real and quite a few workloads are already moving over, but I am trying very hard not to declare the whole migration complete just because the new machine is exciting.
-
-Infrastructure migrations are mostly a long series of tiny checks which prevent one dramatic disaster.
-
-This is taking forever, but at least I still have a working homelab.
-
-More updates when I inevitably add another computer and make the diagram worse.
+That is less satisfying than a clean “everything migrated” ending, but it is the accurate state of the homelab—and I still have a rollback path.
